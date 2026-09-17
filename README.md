@@ -1,2 +1,2 @@
-# links...
-omg.... IT is gonna stone me 💔
+# Perigee
+### Simple link tester made by Lumi (and Y35...)
