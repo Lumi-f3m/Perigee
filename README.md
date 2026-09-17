@@ -1,2 +1,2 @@
 # Perigee
-### Simple link tester made by Lumi (and Y35...)
+Simple link tester we made for some reason...
