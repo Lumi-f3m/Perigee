@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Perigee</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+      background-color: #08060a;
+      color: #ffffff;
+    }
+
+    #particleCanvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    .hero-container {
+      position: relative;
+      z-index: 2;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      pointer-events: none;
+    }
+
+    .time-display {
+      font-size: clamp(3.5rem, 9vw, 8.5rem);
+      font-weight: 700;
+      letter-spacing: -2px;
+      color: #ffffff;
+      text-shadow: 0 4px 24px rgba(0, 0, 0, 0.7);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .credits {
+      margin-top: 12px;
+      font-size: clamp(0.9rem, 1.8vw, 1.2rem);
+      font-weight: 500;
+      letter-spacing: 0.5px;
+      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.7);
+    }
+
+    .trans-text {
+      font-weight: 700;
+      background: linear-gradient(
+        90deg, 
+        rgba(91, 206, 250, 0.85),
+        rgba(245, 169, 184, 0.85),
+        rgba(255, 255, 255, 0.9),
+        rgba(245, 169, 184, 0.85),
+        rgba(91, 206, 250, 0.85)
+      );
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .bi-text {
+      font-weight: 700;
+      background: linear-gradient(
+        90deg,
+        rgba(214, 2, 112, 0.85),
+        rgba(155, 79, 150, 0.85),
+        rgba(0, 56, 168, 0.85)
+      );
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .muted-credit {
+      color: rgba(255, 255, 255, 0.5);
+    }
+
+    .left-tab {
+      position: absolute;
+      top: 50%;
+      left: 0;
+      transform: translateY(-50%);
+      z-index: 10;
+      padding: 16px 12px;
+      border-top-right-radius: 12px;
+      border-bottom-right-radius: 12px;
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-left: none;
+      box-shadow: 4px 0 24px rgba(0, 0, 0, 0.4);
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .left-tab:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .left-tab.tab-hidden {
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(-50%) translateX(-20px);
+    }
+
+    .left-tab span {
+      writing-mode: vertical-rl;
+      transform: rotate(180deg);
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    .drawer {
+      position: absolute;
+      top: 0;
+      left: -420px;
+      width: 400px;
+      height: 100%;
+      background: rgba(12, 10, 16, 0.92);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-right: 1px solid rgba(255, 255, 255, 0.12);
+      z-index: 20;
+      transition: left 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+      box-shadow: 10px 0 30px rgba(0, 0, 0, 0.6);
+    }
+
+    .drawer.open {
+      left: 0;
+    }
+
+    .drawer-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .drawer-header h2 {
+      font-size: 1.2rem;
+      font-weight: 600;
+      letter-spacing: 1px;
+    }
+
+    .close-btn {
+      background: none;
+      border: none;
+      color: #fff;
+      font-size: 1.5rem;
+      cursor: pointer;
+      opacity: 0.7;
+    }
+
+    .close-btn:hover {
+      opacity: 1;
+    }
+
+    .nav-tabs {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 16px;
+      background: rgba(255, 255, 255, 0.05);
+      padding: 4px;
+      border-radius: 8px;
+    }
+
+    .nav-btn {
+      flex: 1;
+      background: none;
+      border: none;
+      color: rgba(255, 255, 255, 0.6);
+      padding: 8px 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .nav-btn.active {
+      background: rgba(255, 255, 255, 0.15);
+      color: #fff;
+    }
+
+    .drawer-body {
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .tool-view {
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .tool-view.active {
+      display: flex;
+    }
+
+    textarea, input[type="text"] {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 8px;
+      color: #fff;
+      padding: 10px;
+      font-family: monospace;
+      font-size: 0.85rem;
+      outline: none;
+      user-select: text;
+    }
+
+    textarea {
+      height: 100px;
+      resize: vertical;
+    }
+
+    textarea:focus, input[type="text"]:focus {
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    .button-group {
+      display: flex;
+      gap: 8px;
+    }
+
+    .action-btn {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      color: #fff;
+      padding: 10px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .action-btn:hover {
+      background: rgba(255, 255, 255, 0.22);
+    }
+
+    .action-btn.secondary {
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .section-title {
+      font-size: 0.8rem;
+      color: rgba(255, 255, 255, 0.7);
+      margin-top: 6px;
+    }
+
+    .results-box {
+      background: rgba(0, 0, 0, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 10px;
+      font-family: monospace;
+      font-size: 0.8rem;
+      max-height: 140px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+      user-select: text;
+    }
+
+    .clean-text { color: #51cf66; }
+    .flagged-text { color: #ff6b6b; }
+    .json-text { color: #845ef7; }
+
+    .stats-bar {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    .stats-bar .green { color: #51cf66; }
+    .stats-bar .red { color: #ff6b6b; }
+
+    .iframe-tester-container {
+      background: rgba(0, 0, 0, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 8px;
+      padding: 10px;
+      margin-top: 8px;
+    }
+
+    .iframe-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.75rem;
+      margin-bottom: 8px;
+      word-break: break-all;
+    }
+
+    .iframe-wrapper {
+      width: 100%;
+      height: 200px;
+      border-radius: 6px;
+      overflow: hidden;
+      background: #fff;
+    }
+
+    .iframe-wrapper iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    .green-btn {
+      background: rgba(34, 197, 94, 0.2);
+      border-color: rgba(34, 197, 94, 0.4);
+      color: #4ade80;
+    }
+    .green-btn:hover {
+      background: rgba(34, 197, 94, 0.35);
+    }
+
+    .red-btn {
+      background: rgba(239, 68, 68, 0.2);
+      border-color: rgba(239, 68, 68, 0.4);
+      color: #f87171;
+    }
+    .red-btn:hover {
+      background: rgba(239, 68, 68, 0.35);
+    }
+  </style>
+</head>
+<body>
+
+  <canvas id="particleCanvas"></canvas>
+
+  <div class="left-tab" id="toolsTab">
+    <span>PAGELESS TOOLS</span>
+  </div>
+
+  <div class="drawer" id="drawer">
+    <div class="drawer-header">
+      <h2>Pageless Tools</h2>
+      <button class="close-btn" id="closeBtn">&times;</button>
+    </div>
+
+    <div class="nav-tabs">
+      <button class="nav-btn active" data-target="view-tester">Link Tester</button>
+      <button class="nav-btn" data-target="view-filter">2-Letter Filter</button>
+      <button class="nav-btn" data-target="view-json">JSON Generator</button>
+    </div>
+
+    <div class="drawer-body">
+      
+      <div class="tool-view active" id="view-tester">
+        <textarea id="testerInput" placeholder="Paste links to test (one per line)..."></textarea>
+        
+        <div class="button-group">
+          <button class="action-btn" onclick="startIframeTesting()">Start Queue Test</button>
+          <button class="action-btn secondary" onclick="copyUnblockedTesterLinks()">Copy Unblocked</button>
+        </div>
+
+        <div class="stats-bar" style="margin-top: 6px;">
+          <span>Remaining: <b id="testerRemaining">0</b></span>
+          <span>Unblocked: <b id="testerUnblockedCount" class="green">0</b></span>
+          <span>Blocked: <b id="testerBlockedCount" class="red">0</b></span>
+        </div>
+
+        <div class="iframe-tester-container" id="iframeContainer" style="display: none;">
+          <div class="iframe-header">
+            <span id="currentTestingUrl">https://example.com</span>
+          </div>
+          
+          <div class="iframe-wrapper">
+            <iframe id="previewIframe" src="about:blank"></iframe>
+          </div>
+
+          <div class="button-group" style="margin-top: 8px;">
+            <button class="action-btn green-btn" onclick="markLink(true)">✓ Unblocked</button>
+            <button class="action-btn red-btn" onclick="markLink(false)">✕ Blocked</button>
+          </div>
+        </div>
+
+        <div class="section-title">Tested Results Log:</div>
+        <div id="testerOutput" class="results-box">No tests run yet...</div>
+      </div>
+
+      <div class="tool-view" id="view-filter">
+        <textarea id="filterInput" placeholder="example.com&#10;https://google.com&#10;test.co"></textarea>
+        <div class="button-group">
+          <button class="action-btn" onclick="processFilter()">Filter Links</button>
+          <button class="action-btn secondary" onclick="copyCleanList()">Copy Clean</button>
+        </div>
+        
+        <div class="section-title">Clean Links (<span id="cleanCount">0</span>):</div>
+        <div id="cleanOutput" class="results-box clean-text">No clean links yet.</div>
+
+        <div class="section-title">Flagged (2-Letter TLDs) (<span id="flaggedCount">0</span>):</div>
+        <div id="flaggedOutput" class="results-box flagged-text">No flagged links yet.</div>
+      </div>
+
+      <div class="tool-view" id="view-json">
+        <input type="text" id="jsonKey" placeholder="JSON Property Key (e.g. 'urls' or 'links')" value="links" />
+        <textarea id="jsonInput" placeholder="Paste clean links to format into JSON (one per line)..."></textarea>
+        <div class="button-group">
+          <button class="action-btn" onclick="generateJSON()">Generate JSON</button>
+          <button class="action-btn secondary" onclick="copyJSON()">Copy JSON</button>
+        </div>
+        <div id="jsonOutput" class="results-box json-text">Formatted JSON will appear here...</div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="hero-container">
+    <div class="time-display" id="clock">00:00:00.0</div>
+    <div class="credits">
+      <span class="muted-credit">Made by </span><span class="trans-text">Lumi</span><span class="muted-credit"> | helped by </span><span class="bi-text">Y35</span>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('particleCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let particles = [];
+    const particleCount = 60;
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+
+    class Particle {
+      constructor() {
+        this.reset();
+      }
+
+      reset() {
+        this.x = Math.random() * canvas.width;
+        this.y = Math.random() * canvas.height;
+        this.radius = Math.random() * 1.5 + 0.5;
+        this.vx = (Math.random() - 0.5) * 0.3;
+        this.vy = (Math.random() - 0.5) * 0.3;
+        this.alpha = Math.random() * 0.5 + 0.2;
+      }
+
+      update() {
+        this.x += this.vx;
+        this.y += this.vy;
+
+        if (this.x < 0 || this.x > canvas.width) this.vx *= -1;
+        if (this.y < 0 || this.y > canvas.height) this.vy *= -1;
+      }
+
+      draw() {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 255, 255, ${this.alpha})`;
+        ctx.fill();
+      }
+    }
+
+    function initParticles() {
+      resizeCanvas();
+      particles = [];
+      for (let i = 0; i < particleCount; i++) {
+        particles.push(new Particle());
+      }
+    }
+
+    function animateParticles() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      particles.forEach(p => {
+        p.update();
+        p.draw();
+      });
+      requestAnimationFrame(animateParticles);
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+    initParticles();
+    animateParticles();
+
+    const clockElement = document.getElementById('clock');
+
+    function updateClock() {
+      const now = new Date();
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const seconds = String(now.getSeconds()).padStart(2, '0');
+      const tenths = Math.floor(now.getMilliseconds() / 100);
+
+      clockElement.textContent = `${hours}:${minutes}:${seconds}.${tenths}`;
+    }
+
+    setInterval(updateClock, 100);
+    updateClock();
+
+    const drawer = document.getElementById('drawer');
+    const toolsTab = document.getElementById('toolsTab');
+    const closeBtn = document.getElementById('closeBtn');
+    const navButtons = document.querySelectorAll('.nav-btn');
+    const toolViews = document.querySelectorAll('.tool-view');
+
+    toolsTab.addEventListener('click', () => {
+      drawer.classList.add('open');
+      toolsTab.classList.add('tab-hidden');
+    });
+
+    closeBtn.addEventListener('click', () => {
+      drawer.classList.remove('open');
+      toolsTab.classList.remove('tab-hidden');
+    });
+
+    document.addEventListener('click', (e) => {
+      if (
+        drawer.classList.contains('open') &&
+        !drawer.contains(e.target) &&
+        !toolsTab.contains(e.target)
+      ) {
+        drawer.classList.remove('open');
+        toolsTab.classList.remove('tab-hidden');
+      }
+    });
+
+    navButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        navButtons.forEach(b => b.classList.remove('active'));
+        toolViews.forEach(v => v.classList.remove('active'));
+
+        btn.classList.add('active');
+        document.getElementById(btn.dataset.target).classList.add('active');
+      });
+    });
+
+    let testQueue = [];
+    let currentTestIndex = 0;
+    let unblockedLinks = [];
+    let blockedLinks = [];
+
+    function startIframeTesting() {
+      const input = document.getElementById('testerInput').value.trim();
+      if (!input) return alert('Please enter at least one link to test!');
+
+      testQueue = input.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+
+      if (testQueue.length === 0) return;
+
+      currentTestIndex = 0;
+      unblockedLinks = [];
+      blockedLinks = [];
+
+      document.getElementById('testerOutput').innerHTML = '';
+      document.getElementById('iframeContainer').style.display = 'block';
+
+      updateQueueStats();
+      loadNextIframe();
+    }
+
+    function loadNextIframe() {
+      if (currentTestIndex >= testQueue.length) {
+        document.getElementById('iframeContainer').style.display = 'none';
+        document.getElementById('testerOutput').innerHTML += `\n<strong>--- Batch Testing Complete! ---</strong>`;
+        return;
+      }
+
+      let url = testQueue[currentTestIndex];
+      if (!/^https?:\/\//i.test(url)) {
+        url = 'https://' + url;
+        testQueue[currentTestIndex] = url;
+      }
+
+      document.getElementById('currentTestingUrl').innerText = url;
+      document.getElementById('previewIframe').src = url;
+
+      updateQueueStats();
+    }
+
+    function markLink(isUnblocked) {
+      const currentUrl = testQueue[currentTestIndex];
+      const outputBox = document.getElementById('testerOutput');
+
+      if (isUnblocked) {
+        unblockedLinks.push(currentUrl);
+        const line = document.createElement('div');
+        line.className = 'clean-text';
+        line.innerText = `[UNBLOCKED] ${currentUrl}`;
+        outputBox.appendChild(line);
+      } else {
+        blockedLinks.push(currentUrl);
+        const line = document.createElement('div');
+        line.className = 'flagged-text';
+        line.innerText = `[BLOCKED] ${currentUrl}`;
+        outputBox.appendChild(line);
+      }
+
+      currentTestIndex++;
+      loadNextIframe();
+    }
+
+    function updateQueueStats() {
+      const remaining = testQueue.length - currentTestIndex;
+      document.getElementById('testerRemaining').innerText = remaining;
+      document.getElementById('testerUnblockedCount').innerText = unblockedLinks.length;
+      document.getElementById('testerBlockedCount').innerText = blockedLinks.length;
+    }
+
+    function copyUnblockedTesterLinks() {
+      if (!unblockedLinks.length) return alert('No unblocked links to copy yet!');
+      navigator.clipboard.writeText(unblockedLinks.join('\n')).then(() => alert('Unblocked links copied to clipboard!'));
+    }
+
+    let currentCleanList = [];
+
+    function processFilter() {
+      const rawText = document.getElementById('filterInput').value;
+      const lines = rawText.split('\n');
+
+      currentCleanList = [];
+      const flaggedList = [];
+
+      lines.forEach(line => {
+        let trimmed = line.trim();
+        if (!trimmed) return;
+
+        if (!/^https?:\/\//i.test(trimmed)) {
+          trimmed = 'https://' + trimmed;
+        }
+
+        try {
+          const parsedUrl = new URL(trimmed);
+          const parts = parsedUrl.hostname.split('.');
+          const tld = parts[parts.length - 1];
+
+          if (/^[a-zA-Z]{2}$/.test(tld)) {
+            flaggedList.push(trimmed);
+          } else {
+            currentCleanList.push(trimmed);
+          }
+        } catch (e) {
+          flaggedList.push(trimmed + ' (Invalid format)');
+        }
+      });
+
+      document.getElementById('cleanCount').innerText = currentCleanList.length;
+      document.getElementById('flaggedCount').innerText = flaggedList.length;
+
+      document.getElementById('cleanOutput').innerText = currentCleanList.length 
+        ? currentCleanList.join('\n') 
+        : 'No clean links found.';
+
+      document.getElementById('flaggedOutput').innerText = flaggedList.length 
+        ? flaggedList.join('\n') 
+        : 'No flagged links found.';
+    }
+
+    function copyCleanList() {
+      if (!currentCleanList.length) return alert('No clean links to copy!');
+      navigator.clipboard.writeText(currentCleanList.join('\n')).then(() => alert('Clean links copied!'));
+    }
+
+    function generateJSON() {
+      const key = document.getElementById('jsonKey').value.trim() || 'links';
+      const rawText = document.getElementById('jsonInput').value.trim();
+
+      if (!rawText) return;
+
+      const urls = rawText.split('\n').map(l => {
+        let trimmed = l.trim();
+        if (trimmed && !/^https?:\/\//i.test(trimmed)) {
+          trimmed = 'https://' + trimmed;
+        }
+        return trimmed;
+      }).filter(l => l.length > 0);
+
+      const jsonObject = {};
+      jsonObject[key] = urls;
+
+      const formattedJSON = JSON.stringify(jsonObject, null, 2);
+      document.getElementById('jsonOutput').innerText = formattedJSON;
+    }
+
+    function copyJSON() {
+      const jsonText = document.getElementById('jsonOutput').innerText;
+      if (!jsonText || jsonText.startsWith('Formatted JSON')) return alert('Generate JSON first!');
+      navigator.clipboard.writeText(jsonText).then(() => alert('JSON copied to clipboard!'));
+    }
+  </script>
+</body>
+</html>
